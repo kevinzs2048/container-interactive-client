@@ -36,6 +36,7 @@ def getpass(maskchar = "*"):
 
 def main():
     console_url = "ws://127.0.0.1:2375/v1.17/containers/88d18194bc31/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1"
+    #console_url = "ws://10.369.36.100:2375/v1.17/containers/5b4278fd22f9/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1"
     LOG.debug("Begin")
     try:
         console = Client(console_url,

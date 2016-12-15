@@ -27,19 +27,16 @@ class Client (object):
         self.url = url
         self.escape = escape
         self.close_wait = close_wait
-
-        #self.setup_logging()
+        logging.getLogger().setLevel(logging.DEBUG)
         self.connect()
 
     #def setup_logging(self):
-   #     logging.getLogger().setLevel(logging.DEBUG)
-    #    self.log = logging.getLogger('novaconsole.client')
+        #self.log = logging.getLogger('novaconsole.client')
 
     def connect(self):
         logging.debug('connecting to: %s', self.url)
         try:
-            self.ws = websocket.create_connection(
-                self.url)
+            self.ws = websocket.create_connection(self.url)
             logging.warn('connected to: %s', self.url)
             logging.warn('type "%s." to disconnect',
                           self.escape)
