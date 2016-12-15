@@ -6,7 +6,7 @@ import logging
 from intermode.client import Client
 from intermode.exc import *
 
-LOG = logging.getLogger('novaconsole')
+LOG = logging.getLogger('intermode')
 
 def getch():
     fd = sys.stdin.fileno()

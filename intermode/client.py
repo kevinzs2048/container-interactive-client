@@ -27,7 +27,7 @@ class Client (object):
         self.url = url
         self.escape = escape
         self.close_wait = close_wait
-        logging.getLogger().setLevel(logging.DEBUG)
+        #logging.getLogger().setLevel(logging.DEBUG)
         self.connect()
 
     #def setup_logging(self):
@@ -97,16 +97,6 @@ class Client (object):
             logging.debug('putting tty into raw mode')
             self.old_settings = termios.tcgetattr(sys.stdin)
             tty.setraw(sys.stdin)
-#        fd = sys.stdin.fileno()
-#        old_settings = termios.tcgetattr(fd)
- ##       logging.debug('-----1-----')
- #       try:
-#            tty.setraw(sys.stdin.fileno())
- #           logging.debug('---2---')
- #           ch = sys.stdin.read(1)
- #       finally:
- #           termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
- #       return ch
 
     def restore_tty(self):
         if os.isatty(sys.stdin.fileno()):
@@ -135,7 +125,7 @@ class Client (object):
             return
 
         if self.read_escape and data == '.':
-            self.log.debug('exit on escape code')
+            logging.debug('exit on escape code')
             raise UserExit()
         elif self.read_escape:
             self.read_escape = False
