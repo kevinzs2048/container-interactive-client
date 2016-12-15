@@ -36,7 +36,8 @@ class Client (object):
     def connect(self):
         logging.debug('connecting to: %s', self.url)
         try:
-            self.ws = websocket.create_connection(self.url)
+            self.ws = websocket.create_connection(self.url, subprotocols=['binary'])
+            #self.ws = websocket.create_connection(self.url)
             logging.warn('connected to: %s', self.url)
             logging.warn('type "%s." to disconnect',
                           self.escape)
