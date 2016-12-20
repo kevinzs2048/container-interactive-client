@@ -31,13 +31,12 @@ class Client (object):
         self.connect()
 
     #def setup_logging(self):
-        #self.log = logging.getLogger('novaconsole.client')
+        #self.log = logging.getLogger('intermode')
 
     def connect(self):
         logging.debug('connecting to: %s', self.url)
         try:
-            self.ws = websocket.create_connection(self.url, subprotocols=['binary'])
-            #self.ws = websocket.create_connection(self.url)
+            self.ws = websocket.create_connection(self.url)
             logging.warn('connected to: %s', self.url)
             logging.warn('type "%s." to disconnect',
                           self.escape)
@@ -59,11 +58,6 @@ class Client (object):
         try:
             self.setup_tty()
             self.run_forever()
-
-        # here we attempt to translate the exceptions generated
-        # by various modules into novaconsole exceptions, so that
-        # client code does not need to import modules from all
-        # over the place.
         except socket.error as e:
             raise ConnectionFailed(e)
         except websocket.WebSocketConnectionClosedException as e:
@@ -72,7 +66,7 @@ class Client (object):
             self.restore_tty()
 
     def run_forever(self):
-        logging.debug('starting main client loop')
+        logging.debug('starting main loop in client')
         self.quit = False
         quitting = False
         when = None
@@ -126,7 +120,7 @@ class Client (object):
             return
 
         if self.read_escape and data == '.':
-            logging.debug('exit on escape code')
+            logging.debug('exit by local escape code')
             raise UserExit()
         elif self.read_escape:
             self.read_escape = False
@@ -148,7 +142,7 @@ class Client (object):
             self.quit = True
 
         data = self.ws.recv()
-        logging.debug('read %s (%d bytes) from websocket',
+        logging.debug('read %s (%d bytes) from websocket from container',
                        repr(data),
                        len(data))
         if not data:
