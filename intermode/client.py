@@ -7,6 +7,7 @@ import socket
 import sys
 import time
 import tty
+import signal
 
 import termios
 from intermode.exc import *
@@ -54,16 +55,16 @@ class Client (object):
 
         self.start_of_line = False
         self.read_escape = False
-
-        try:
-            self.setup_tty()
-            self.run_forever()
-        except socket.error as e:
-            raise ConnectionFailed(e)
-        except websocket.WebSocketConnectionClosedException as e:
-            raise Disconnected(e)
-        finally:
-            self.restore_tty()
+        with WINCHHandler(self):
+            try:
+                self.setup_tty()
+                self.run_forever()
+            except socket.error as e:
+                raise ConnectionFailed(e)
+            except websocket.WebSocketConnectionClosedException as e:
+                raise Disconnected(e)
+            finally:
+                self.restore_tty()
 
     def run_forever(self):
         logging.debug('starting main loop in client')
@@ -150,3 +151,56 @@ class Client (object):
 
         sys.stdout.write(data)
         sys.stdout.flush()
+
+class WINCHHandler(object):
+    """
+    WINCH Signal handler to keep the PTY correctly sized.
+    """
+
+    def __init__(self, pty):
+        """
+        Initialize a new WINCH handler for the given PTY.
+
+        Initializing a handler has no immediate side-effects. The `start()`
+        method must be invoked for the signals to be trapped.
+        """
+
+        #self.pty = pty
+        self.original_handler = None
+
+    def __enter__(self):
+        """
+        Invoked on entering a `with` block.
+        """
+
+        self.start()
+        return self
+
+    def __exit__(self, *_):
+        """
+        Invoked on exiting a `with` block.
+        """
+
+        self.stop()
+
+    def start(self):
+        """
+        Start trapping WINCH signals and resizing the PTY.
+
+        This method saves the previous WINCH handler so it can be restored on
+        `stop()`.
+        """
+
+        def handle(signum, frame):
+            if signum == signal.SIGWINCH:
+                logging.debug("run here to resize")
+
+        self.original_handler = signal.signal(signal.SIGWINCH, handle)
+
+    def stop(self):
+        """
+        Stop trapping WINCH signals and restore the previous WINCH handler.
+        """
+
+        if self.original_handler is not None:
+            signal.signal(signal.SIGWINCH, self.original_handler)
