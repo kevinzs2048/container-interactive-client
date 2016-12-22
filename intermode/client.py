@@ -6,11 +6,18 @@ import select
 import socket
 import sys
 import time
-import tty
+import six
 import signal
+import fcntl
+import tty
+import struct
+import errno
+
+import pycurl
 
 import termios
 from intermode.exc import *
+from intermode.container import *
 
 try:
     import websocket
@@ -22,12 +29,12 @@ except ImportError:
 
 
 class Client (object):
-    def __init__(self, url,
+    def __init__(self, container,
                  escape='~',
                  close_wait=0.5):
-        self.url = url
         self.escape = escape
         self.close_wait = close_wait
+        self.container = container
         #logging.getLogger().setLevel(logging.DEBUG)
         self.connect()
 
@@ -35,10 +42,17 @@ class Client (object):
         #self.log = logging.getLogger('intermode')
 
     def connect(self):
-        logging.debug('connecting to: %s', self.url)
+        ip = self.container.host_ip
+        id = self.container.container_id
+        version = self.container.remote_api_ver
+
+        url = "ws://" + ip + "/" + version + "/containers/" +\
+              id + "/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1"
+
+        logging.debug('connecting to: %s', url)
         try:
-            self.ws = websocket.create_connection(self.url)
-            logging.warn('connected to: %s', self.url)
+            self.ws = websocket.create_connection(url)
+            logging.warn('connected to: %s', url)
             logging.warn('type "%s." to disconnect',
                           self.escape)
         except socket.error as e:
@@ -73,11 +87,19 @@ class Client (object):
         when = None
 
         while True:
-            for fd, event in self.poll.poll(500):
-                if fd == self.ws.fileno():
-                    self.handle_websocket(event)
-                elif fd == sys.stdin.fileno():
-                    self.handle_stdin(event)
+            try:
+                for fd, event in self.poll.poll(500):
+                    if fd == self.ws.fileno():
+                        self.handle_websocket(event)
+                    elif fd == sys.stdin.fileno():
+                        self.handle_stdin(event)
+            except select.error as e:
+                # POSIX signals interrupt select()
+                no = e.errno if six.PY3 else e[0]
+                if no == errno.EINTR:
+                    continue
+                else:
+                    raise e
 
             if self.quit and not quitting:
                 self.log.debug('entering close_wait')
@@ -152,12 +174,89 @@ class Client (object):
         sys.stdout.write(data)
         sys.stdout.flush()
 
+    def handle_resize(self,):
+        """
+        send the POST to resize the tty session size in container.
+        curl -X POST -H "Content-Type: application/json" http://127.0.0.1:2375/containers/4b93a26d146e/resize?"h=40&w=180"
+
+        Resize the container's PTY.
+
+        If `size` is not None, it must be a tuple of (height,width), otherwise
+        it will be determined by the size of the current TTY.
+        """
+
+        ## need to add here
+        #if not self.israw():
+        #    return
+
+        size = self.tty_size(sys.stdout)
+
+        if size is not None:
+            rows, cols = size
+            try:
+                self.tty_resize(height=rows, width=cols)
+            except IOError:  # Container already exited
+                pass
+
+    def tty_size(self, fd):
+        """
+        Return a tuple (rows,cols) representing the size of the TTY `fd`.
+
+        The provided file descriptor should be the stdout stream of the TTY.
+
+        If the TTY size cannot be determined, returns None.
+        """
+
+        if not os.isatty(fd.fileno()):
+            return None
+
+        try:
+            dims = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, 'hhhh'))
+        except:
+            try:
+                dims = (os.environ['LINES'], os.environ['COLUMNS'])
+            except:
+                return None
+
+        return dims
+
+    def tty_resize(self, height, width):
+        # Ugly code style just for test. Will when in the future.
+        hw = "h=" + str(height) + "&w=" + str(width)
+        cmd = self.container.host_ip + "/containers/" + self.container.container_id + "/" + 'resize?"' + hw + '"'
+        self.docker_cmd_send(cmd)
+
+    def docker_cmd_send(self, cmd):
+        """
+        :param url: the http post Link
+        :return:
+        Just for test
+        """
+
+        cmd = 'curl -X POST -H "Content-Type: application/json" ' + "http://" + cmd
+        os.system(cmd)
+
+    def israw(self, **kwargs):
+        """
+        Returns True if the PTY should operate in raw mode.
+
+        If the container was not started with tty=True, this will return False.
+        """
+
+        if self.raw is None:
+            # Add POST to the container to get the size (need to talk to ZUN API-->Docker Daemon and return here)
+            # For demo just using  POST to Docker Daemon
+            #info = self._container_info()
+            self.raw = sys.stdout.isatty() and info['Config']['Tty']
+
+        return self.raw
+
 class WINCHHandler(object):
     """
     WINCH Signal handler to keep the PTY correctly sized.
     """
 
-    def __init__(self, pty):
+    def __init__(self, client):
         """
         Initialize a new WINCH handler for the given PTY.
 
@@ -165,7 +264,7 @@ class WINCHHandler(object):
         method must be invoked for the signals to be trapped.
         """
 
-        #self.pty = pty
+        self.client = client
         self.original_handler = None
 
     def __enter__(self):
@@ -193,7 +292,10 @@ class WINCHHandler(object):
 
         def handle(signum, frame):
             if signum == signal.SIGWINCH:
-                logging.debug("run here to resize")
+                logging.debug("Send command to resize the tty session")
+                size = self.client.handle_resize()
+
+
 
         self.original_handler = signal.signal(signal.SIGWINCH, handle)
 
