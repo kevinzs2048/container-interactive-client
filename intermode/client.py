@@ -46,12 +46,13 @@ class Client (object):
         id = self.container.container_id
         version = self.container.remote_api_ver
 
+        ### The URL need to get from Zun-API service
         url = "ws://" + ip + "/" + version + "/containers/" +\
               id + "/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1"
 
         logging.debug('connecting to: %s', url)
         try:
-            self.ws = websocket.create_connection(url)
+            self.ws = websocket.create_connection(url, skip_utf8_validation=True)
             logging.warn('connected to: %s', url)
             logging.warn('type "%s." to disconnect',
                           self.escape)
@@ -222,6 +223,8 @@ class Client (object):
 
     def tty_resize(self, height, width):
         # Ugly code style just for test. Will when in the future.
+        ### Need to notify the zun api and zun api to send the command
+
         hw = "h=" + str(height) + "&w=" + str(width)
         cmd = self.container.host_ip + "/containers/" + self.container.container_id + "/" + 'resize?"' + hw + '"'
         self.docker_cmd_send(cmd)
