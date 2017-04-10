@@ -5,26 +5,26 @@ Support resize terminal
 port.
 First will try Docker.
 Docker can enable remote api, open and listen to the port.
-#How to
+## How to
 1.You need to enable Docker to listen to the port , in this demo, Docker Daemon listen to 0.0.0.0:2375
-The doc here will show how to do this: https://docs.docker.com/engine/admin/
+The doc here will show how to do this: https://docs.docker.com/engine/admin/ <br />
 
 2.You can create the docker with the command "-it" and "-d" in docker cmdline.
-e.g: sudo docker run -it -d ubuntu /bin/bash
+e.g: sudo docker run -it -d ubuntu /bin/bash<br />
 
-3.Modify the console_url in main.py to set the property link.
+3.Modify the console_url in main.py to set the property link.<br />
 
-4.run "python main.py" to taste.
+4.run "python main.py" to taste.<br />
 
-#Remain issues
+## Remain issues
 1.Websocket-client will need to modify some code when dealing with escape code.
 such as: "\x1b[?1049h\x1b[?1h\x1b=\x1b[2;1H\xbd\x1b[6n\x1b[2;1H"
 These will be generated when you run "vim"
-Fixed
+Fixed<br />
 
-Now working on integration with OpenStack Zun code.
+Integrated with python-zunclient. Finished<br />
 
 Ref:
-Kubectl
-Novaconsole
-python package websocket-client
+Kubectl<br />
+Novaconsole<br />
+python package websocket-client<br />
